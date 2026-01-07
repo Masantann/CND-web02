@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aurora · Notes</title>
+    <title>FullStack · Notes</title>
     
     <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -82,8 +82,8 @@
         <!-- 顶栏 -->
         <header class="fixed top-0 inset-x-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 h-16 flex items-center justify-between px-4 lg:px-8 shadow-sm">
             <div class="flex items-center gap-2 cursor-pointer" @click="window.scrollTo({top:0, behavior:'smooth'})">
-                <div class="w-8 h-8 bg-brand-500 text-white rounded-lg flex items-center justify-center font-bold text-lg shadow-brand-500/30 shadow-lg">A</div>
-                <span class="font-bold text-lg tracking-tight">Aurora</span>
+                <div class="w-8 h-8 bg-brand-500 text-white rounded-lg flex items-center justify-center font-bold text-lg shadow-brand-500/30 shadow-lg">F</div>
+                <span class="font-bold text-lg tracking-tight">FullStack</span>
             </div>
             
             <div class="flex items-center gap-3">
@@ -122,7 +122,7 @@
                 
                 <template x-for="post in posts" :key="post.id">
                     <article class="grid-item group">
-                        <!-- 卡片本体：增强对比度 bg-white, shadow-md -->
+                        <!-- 卡片本体 -->
                         <div class="bg-white rounded-2xl border border-slate-200 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
                              @click="openDetail(post)">
                             
@@ -130,7 +130,7 @@
                             <template x-if="post.mediaUrl">
                                 <div class="relative w-full bg-slate-100">
                                     
-                                    <!-- 视频处理：显示图标，禁止悬停播放 -->
+                                    <!-- 视频处理 -->
                                     <template x-if="isVideo(post.mediaUrl)">
                                         <div class="relative w-full aspect-video">
                                             <video :src="post.mediaUrl + '#t=0.1'" class="w-full h-full object-cover" preload="metadata" muted></video>
@@ -224,7 +224,7 @@
             </div>
         </div>
 
-        <!-- 详情弹窗 (修复图片显示问题) -->
+        <!-- 详情弹窗 -->
         <div class="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6" x-cloak x-show="detailOpen">
             <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" x-show="detailOpen" x-transition.opacity @click="closeDetail()"></div>
             
@@ -236,7 +236,7 @@
                     <i class="ph-bold ph-x text-lg"></i>
                 </button>
 
-                <!-- 左侧：媒体展示区 (强制 flex) -->
+                <!-- 左侧：媒体展示区 -->
                 <div class="w-full md:w-2/3 h-[40vh] md:h-full bg-slate-900 relative group detail-media-container">
                     <template x-if="detailPost.mediaUrl">
                          <div class="w-full h-full flex items-center justify-center">
@@ -302,7 +302,7 @@
                         </template>
                     </div>
 
-                    <!-- 底部操作栏 (包括删除按钮) -->
+                    <!-- 底部操作栏 -->
                     <div class="p-4 border-t border-slate-100 bg-slate-50 shrink-0 flex items-center justify-between">
                         
                         <!-- 左侧：删除按钮 -->
@@ -361,9 +361,9 @@
                 imagesLoaded(grid, () => {
                     this.msnry = new Masonry(grid, {
                         itemSelector: '.grid-item',
-                        columnWidth: '.grid-item', // 使用元素本身作为列宽基准
+                        columnWidth: '.grid-item',
                         percentPosition: true,
-                        gutter: 24 // 关键：在JS里设置 gutter 为 24px，对应 CSS 里的间隙
+                        gutter: 24 
                     });
                     this.msnry.layout();
                 });
@@ -466,7 +466,8 @@
             formatDate(isoStr) {
                 if (!isoStr) return '';
                 const d = new Date(isoStr);
-                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                // 已更新：添加了 year: 'numeric'
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             },
             showToast(text, type = 'success') {
                 const id = Date.now();
