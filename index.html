@@ -122,7 +122,7 @@
                 
                 <template x-for="post in posts" :key="post.id">
                     <article class="grid-item group">
-                        <!-- 卡片本体 -->
+                        <!-- 卡片本体：增强对比度 bg-white, shadow-md -->
                         <div class="bg-white rounded-2xl border border-slate-200 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
                              @click="openDetail(post)">
                             
@@ -130,7 +130,7 @@
                             <template x-if="post.mediaUrl">
                                 <div class="relative w-full bg-slate-100">
                                     
-                                    <!-- 视频处理 -->
+                                    <!-- 视频处理：显示图标，禁止悬停播放 -->
                                     <template x-if="isVideo(post.mediaUrl)">
                                         <div class="relative w-full aspect-video">
                                             <video :src="post.mediaUrl + '#t=0.1'" class="w-full h-full object-cover" preload="metadata" muted></video>
@@ -155,7 +155,8 @@
                                 <h3 class="font-bold text-slate-900 text-lg leading-snug mb-2 line-clamp-2" x-text="post.title || 'Untitled'"></h3>
                                 <p class="text-slate-600 text-sm leading-relaxed line-clamp-3 font-normal" x-text="post.content"></p>
                                 <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                                    <span x-text="formatDate(post.createdAt)"></span>
+                                    <!-- 列表页时间：带年份 -->
+                                    <span x-text="formatDateList(post.createdAt)"></span>
                                     <span class="group-hover:text-brand-600 transition-colors">Read more &rarr;</span>
                                 </div>
                             </div>
@@ -224,7 +225,7 @@
             </div>
         </div>
 
-        <!-- 详情弹窗 -->
+        <!-- 详情弹窗 (修复图片显示 + 完整时间) -->
         <div class="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6" x-cloak x-show="detailOpen">
             <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" x-show="detailOpen" x-transition.opacity @click="closeDetail()"></div>
             
@@ -236,7 +237,7 @@
                     <i class="ph-bold ph-x text-lg"></i>
                 </button>
 
-                <!-- 左侧：媒体展示区 -->
+                <!-- 左侧：媒体展示区 (强制 flex) -->
                 <div class="w-full md:w-2/3 h-[40vh] md:h-full bg-slate-900 relative group detail-media-container">
                     <template x-if="detailPost.mediaUrl">
                          <div class="w-full h-full flex items-center justify-center">
@@ -280,7 +281,8 @@
                             <div>
                                 <h2 class="text-2xl font-bold text-slate-900 mb-4 leading-tight" x-text="detailPost.title"></h2>
                                 <p class="text-slate-700 whitespace-pre-wrap leading-relaxed text-base" x-text="detailPost.content"></p>
-                                <div class="mt-6 text-sm text-slate-400" x-text="formatDate(detailPost.createdAt)"></div>
+                                <!-- 详情页时间：完整年月日时分秒 -->
+                                <div class="mt-6 text-sm text-slate-400" x-text="formatDateTime(detailPost.createdAt)"></div>
                             </div>
                         </template>
 
@@ -302,7 +304,7 @@
                         </template>
                     </div>
 
-                    <!-- 底部操作栏 -->
+                    <!-- 底部操作栏 (包括删除按钮) -->
                     <div class="p-4 border-t border-slate-100 bg-slate-50 shrink-0 flex items-center justify-between">
                         
                         <!-- 左侧：删除按钮 -->
@@ -361,9 +363,9 @@
                 imagesLoaded(grid, () => {
                     this.msnry = new Masonry(grid, {
                         itemSelector: '.grid-item',
-                        columnWidth: '.grid-item',
+                        columnWidth: '.grid-item', // 使用元素本身作为列宽基准
                         percentPosition: true,
-                        gutter: 24 
+                        gutter: 24 // 关键：在JS里设置 gutter 为 24px，对应 CSS 里的间隙
                     });
                     this.msnry.layout();
                 });
@@ -463,12 +465,28 @@
                 }
             },
             isVideo(url) { return url && /\.(mp4|webm|ogg)$/i.test(url); },
-            formatDate(isoStr) {
+            
+            // 列表时间格式：Month Day, Year
+            formatDateList(isoStr) {
                 if (!isoStr) return '';
                 const d = new Date(isoStr);
-                // 已更新：添加了 year: 'numeric'
                 return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             },
+
+            // 详情页时间格式：完整时间
+            formatDateTime(isoStr) {
+                if (!isoStr) return '';
+                const d = new Date(isoStr);
+                return d.toLocaleString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                });
+            },
+
             showToast(text, type = 'success') {
                 const id = Date.now();
                 this.toasts.push({ id, text, type });
