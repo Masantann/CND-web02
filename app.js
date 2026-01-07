@@ -1,180 +1,222 @@
 import { listPosts, getPost, createPost, updatePost, deletePost } from './api.js';
-import { $, renderGrid, renderSkeleton, toggleComposer, showPreview, fillDetailDialog, openDetail, closeDetail, toast, setDetailEditing } from './dom.js';
 
-// ------- 全局状态 -------
-let CURRENT_LIST = [];
-let CURRENT_DETAIL_ID = null;
-let LIST_ABORT = null;
-let DETAIL_ABORT = null;
-let DIRTY_DETAIL = false;
+document.addEventListener('alpine:init', () => {
+  Alpine.data('auroraApp', () => ({
+    // State
+    posts: [],
+    loading: true,
+    showComposer: false,
+    isDragging: false,
+    isPublishing: false,
 
-// ------- 初始化 -------
-(async function init(){
-  bindConnectivity();
-  bindToolbar();
-  bindComposer();
-  bindDetail();
-  bindKeyboard();
-  await refreshList();
-  handleHashChange();
-  window.addEventListener('hashchange', handleHashChange);
-})();
+    // Detail Modal State
+    detailOpen: false,
+    detailPost: {}, // {id, title, content, mediaUrl, createdAt, newFile?}
+    isEditing: false,
 
-// ------- 网络状态 -------
-function bindConnectivity(){
-  const bar = $('#netbar');
-  const sync = ()=>{ bar.hidden = navigator.onLine; };
-  window.addEventListener('online', sync);
-  window.addEventListener('offline', sync);
-  sync();
-}
+    // Composer State
+    newPost: {
+      title: '',
+      content: '',
+      file: null,
+      filePreview: null,
+      fileIsVideo: false
+    },
 
-// ------- 顶栏 -------
-function bindToolbar(){
-  $('#btnRefresh').addEventListener('click', ()=> refreshList(true));
-  $('#btnNew').addEventListener('click', ()=> toggleComposer(true));
-}
+    // Toast Queue
+    toasts: [],
 
-// ------- 发布面板 -------
-function bindComposer(){
-  const dz = $('#dropZone');
-  $('#composerClose').addEventListener('click', ()=> toggleComposer(false));
-  $('#fileInput').addEventListener('change', (e)=> showPreview(e.target.files[0]));
-  $('#btnReset').addEventListener('click', ()=>{
-    $('#titleInput').value=''; $('#contentInput').value=''; $('#fileInput').value=''; showPreview(null);
-  });
-  $('#btnPublish').addEventListener('click', onPublish);
+    // Masonry Instance
+    msnry: null,
 
-  // 拖拽
-  ['dragenter','dragover'].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add('dragover'); }));
-  ['dragleave','drop'].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove('dragover'); }));
-  dz.addEventListener('drop', (e)=>{
-    const f = e.dataTransfer?.files?.[0];
-    if(f){ $('#fileInput').files = e.dataTransfer.files; showPreview(f); }
-  });
+    // Lifecycle
+    async initApp() {
+      this.handleHashChange();
+      window.addEventListener('hashchange', () => this.handleHashChange());
+      window.addEventListener('resize', () => this.layoutGrid());
+      await this.refreshList();
+    },
 
-  // 粘贴
-  document.addEventListener('paste', (e)=>{
-    const f = [...(e.clipboardData?.files||[])][0];
-    if(f){ toggleComposer(true); $('#fileInput').files = e.clipboardData.files; showPreview(f); }
-  });
-}
+    // Masonry Layout Logic
+    initMasonry() {
+      const grid = document.getElementById('masonry-grid');
+      if (this.msnry) {
+        this.msnry.destroy();
+      }
 
-async function onPublish(){
-  const title = $('#titleInput').value.trim();
-  const content = $('#contentInput').value.trim();
-  const file = $('#fileInput').files[0] || null;
-  if(!title){ toast('标题必填',false); return; }
-  try{
-    const btn = $('#btnPublish'); btn.disabled = true;
-    await createPost({ title, content, file });
-    toast('发布成功', true);
-    toggleComposer(false);
-    $('#btnReset').click();
-    await refreshList();
-  }catch(e){ toast('发布失败：'+e.message,false); }
-  finally{ $('#btnPublish').disabled = false; }
-}
+      // Wait for images to load before layout to avoid overlap
+      imagesLoaded(grid, () => {
+        this.msnry = new Masonry(grid, {
+          itemSelector: '.grid-item',
+          columnWidth: '.grid-sizer',
+          percentPosition: true,
+          gutter: 24 // Match Tailwind gap-6 (24px) - note: gutter in masonry logic is tricky, usually better to use padding in CSS
+        });
 
-// ------- 详情对话框 -------
-function bindDetail(){
-  $('#detailClose').addEventListener('click', tryCloseDetail);
-  $('#detailForm').addEventListener('close', ()=> closeDetail());
-  $('#detailTitle').addEventListener('input', ()=> DIRTY_DETAIL = true);
-  $('#detailContent').addEventListener('input', ()=> DIRTY_DETAIL = true);
-  $('#detailFile').addEventListener('change', ()=> DIRTY_DETAIL = true);
+        // Hack: Tailwind gap is better handled by padding in items.
+        // Since we used margin-bottom in HTML, Masonry handles vertical.
+        // Horizontal gap is handled by width calc in HTML (md:w-[48%]).
+        // Let's just trigger layout.
+        this.msnry.layout();
+      });
+    },
 
-  $('#btnEdit').addEventListener('click', ()=> { setDetailEditing(true); DIRTY_DETAIL = true; });
-  $('#btnSave').addEventListener('click', onSaveDetail);
-  $('#btnDelete').addEventListener('click', onDeleteDetail);
-}
+    layoutGrid() {
+      if (this.msnry) this.msnry.layout();
+    },
 
-function tryCloseDetail(){
-  if(DIRTY_DETAIL && !confirm('有未保存的更改，确定要关闭吗？')) return;
-  DIRTY_DETAIL = false; closeDetail();
-  history.replaceState(null,'', location.pathname); // 清理 hash
-}
+    // Actions
+    async refreshList() {
+      this.loading = true;
+      try {
+        this.posts = await listPosts();
+        // Wait for DOM update then layout
+        this.$nextTick(() => {
+          this.initMasonry();
+        });
+      } catch (e) {
+        this.showToast(e.message, 'error');
+      } finally {
+        this.loading = false;
+      }
+    },
 
-async function onSaveDetail(e){
-  e.preventDefault();
-  if(!CURRENT_DETAIL_ID) return;
-  const title = $('#detailTitle').value.trim();
-  const content = $('#detailContent').value.trim();
-  const file = $('#detailFile').files[0] || null;
-  if(!title){ toast('标题必填', false); return; }
-  try{
-    const btn = $('#btnSave'); btn.disabled = true;
-    await updatePost({ id: CURRENT_DETAIL_ID, title, content, file });
-    toast('更新成功', true);
-    DIRTY_DETAIL = false;
-    setDetailEditing(false);
-    closeDetail();
-    history.replaceState(null,'', location.pathname);
-    await refreshList();
-  }catch(err){ toast('更新失败：'+err.message, false); }
-  finally{ $('#btnSave').disabled = false; }
-}
+    // --- Composer Logic ---
+    handleFileSelect(e) {
+      const file = e.target.files[0];
+      this.processFile(file);
+    },
+    handleDrop(e) {
+      this.isDragging = false;
+      const file = e.dataTransfer.files[0];
+      this.processFile(file);
+    },
+    processFile(file) {
+      if (!file) return;
+      this.newPost.file = file;
+      this.newPost.fileIsVideo = file.type.startsWith('video/');
+      this.newPost.filePreview = URL.createObjectURL(file);
+    },
+    clearFile() {
+      this.newPost.file = null;
+      this.newPost.filePreview = null;
+    },
+    closeComposer() {
+      this.showComposer = false;
+      setTimeout(() => {
+        this.newPost = { title: '', content: '', file: null, filePreview: null, fileIsVideo: false };
+      }, 300); // Wait for transition
+    },
+    async publishPost() {
+      if (!this.newPost.title) return;
+      this.isPublishing = true;
+      try {
+        await createPost({
+          title: this.newPost.title,
+          content: this.newPost.content,
+          file: this.newPost.file
+        });
+        this.showToast('Note published successfully', 'success');
+        this.closeComposer();
+        await this.refreshList();
+      } catch (e) {
+        this.showToast('Failed to publish: ' + e.message, 'error');
+      } finally {
+        this.isPublishing = false;
+      }
+    },
 
-async function onDeleteDetail(e){
-  e.preventDefault();
-  if(!CURRENT_DETAIL_ID) return;
-  if(!confirm('确认删除？')) return;
-  try{
-    const btn = $('#btnDelete'); btn.disabled = true;
-    await deletePost(CURRENT_DETAIL_ID);
-    toast('删除成功', true);
-    DIRTY_DETAIL = false; closeDetail();
-    history.replaceState(null,'', location.pathname);
-    await refreshList();
-  }catch(err){ toast('删除失败：'+err.message,false); }
-  finally{ $('#btnDelete').disabled = false; }
-}
+    // --- Detail Logic ---
+    async openDetail(post) {
+      this.detailPost = { ...post }; // Shallow copy
+      this.detailOpen = true;
+      this.isEditing = false;
+      window.location.hash = `/post/${post.id}`;
 
-// ------- 列表刷新 -------
-async function refreshList(forceSkeleton=false){
-  try{
-    if(LIST_ABORT){ LIST_ABORT.abort(); }
-    LIST_ABORT = new AbortController();
-    if(forceSkeleton){ $('#empty').hidden = true; renderSkeleton($('#skeleton')); $('#skeleton').ariaHidden = 'false'; }
+      // Fetch full details (in case list is partial)
+      try {
+        const fullPost = await getPost(post.id);
+        this.detailPost = { ...this.detailPost, ...fullPost };
+      } catch (e) {
+        console.error("Fetch detail bg error", e);
+      }
+    },
+    closeDetail() {
+      this.detailOpen = false;
+      this.isEditing = false;
+      history.replaceState(null, '', window.location.pathname);
+    },
+    handleDetailFileChange(e) {
+      const file = e.target.files[0];
+      if (file) {
+        this.detailPost.newFile = file;
+        // Preview immediate update
+        this.detailPost.mediaUrl = URL.createObjectURL(file);
+      }
+    },
+    async saveDetail() {
+      try {
+        await updatePost({
+          id: this.detailPost.id,
+          title: this.detailPost.title,
+          content: this.detailPost.content,
+          file: this.detailPost.newFile
+        });
+        this.showToast('Changes saved', 'success');
+        this.isEditing = false;
+        await this.refreshList();
+      } catch (e) {
+        this.showToast('Save failed: ' + e.message, 'error');
+      }
+    },
+    async deleteDetail() {
+      if (!confirm('Are you sure you want to delete this note?')) return;
+      try {
+        await deletePost(this.detailPost.id);
+        this.showToast('Note deleted', 'success');
+        this.closeDetail();
+        await this.refreshList();
+      } catch (e) {
+        this.showToast('Delete failed: ' + e.message, 'error');
+      }
+    },
 
-    const list = await listPosts();
-    CURRENT_LIST = list;
-    $('#skeleton').innerHTML = ''; $('#skeleton').ariaHidden = 'true';
-    renderGrid($('#grid'), list, { onOpen: openDetailById });
-    $('#empty').hidden = list.length > 0;
-  }catch(e){
-    if(e.name === 'AbortError') return;
-    toast('获取列表失败：'+e.message, false);
-  }
-}
-
-// ------- 打开详情（支持 hash 深链） -------
-async function openDetailById(id){
-  try{
-    if(DETAIL_ABORT) DETAIL_ABORT.abort();
-    DETAIL_ABORT = new AbortController();
-    const post = await getPost(id);
-    CURRENT_DETAIL_ID = id;
-    fillDetailDialog(post);
-    setDetailEditing(false);
-    openDetail();
-    DIRTY_DETAIL = false;
-    location.hash = `#/post/${encodeURIComponent(id)}`;
-  }catch(e){ toast('获取详情失败：'+e.message,false); }
-}
-
-// hash 路由
-function handleHashChange(){
-  const m = location.hash.match(/^#\/post\/([^#?]+)/);
-  if(m && m[1]) openDetailById(decodeURIComponent(m[1]));
-}
-
-// ------- 键盘快捷键 -------
-function bindKeyboard(){
-  document.addEventListener('keydown', (e)=>{
-    if(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    if(e.key.toLowerCase()==='n'){ toggleComposer(true); }
-    if(e.key.toLowerCase()==='r'){ refreshList(true); }
-    if(e.key==='Escape'){ tryCloseDetail(); toggleComposer(false); }
-  });
-}
+    // --- Helpers ---
+    handleHashChange() {
+      const hash = window.location.hash;
+      const match = hash.match(/#\/post\/(.+)/);
+      if (match && match[1]) {
+        // If posts loaded, find local; else fetch
+        const id = decodeURIComponent(match[1]);
+        const local = this.posts.find(p => p.id === id);
+        if (local) {
+          this.openDetail(local);
+        } else {
+          getPost(id).then(p => {
+            this.detailPost = p;
+            this.detailOpen = true;
+          }).catch(() => {/* ignore hash err */ });
+        }
+      } else {
+        this.detailOpen = false;
+      }
+    },
+    isVideo(url) {
+      return url && /\.(mp4|webm|ogg)$/i.test(url);
+    },
+    formatDate(isoStr) {
+      if (!isoStr) return '';
+      const d = new Date(isoStr);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+        ' · ' +
+        d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    },
+    showToast(text, type = 'success') {
+      const id = Date.now();
+      this.toasts.push({ id, text, type });
+      setTimeout(() => {
+        this.toasts = this.toasts.filter(t => t.id !== id);
+      }, 3000);
+    }
+  }));
+});
