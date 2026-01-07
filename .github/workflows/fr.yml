@@ -1,0 +1,19 @@
+name: Deploy Frontend to Blob Storage
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Upload to Blob Storage
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+          # 注意：--source . 代表上传当前根目录下的所有文件
+          az storage blob upload-batch --account-name cndac0001 --auth-mode key --destination '$web' --source . --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" --overwrite
