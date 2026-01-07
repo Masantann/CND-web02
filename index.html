@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>笔记板 · Aurora</title>
+  <link rel="stylesheet" href="./styles.css"/>
+</head>
+<body>
+  <!-- 顶栏 -->
+  <header class="topbar" role="banner">
+    <div class="brand" aria-label="brand">
+      <span class="logo" aria-hidden="true">✦</span>
+      <span class="title">笔记板</span>
+    </div>
+    <nav class="actions" aria-label="全局操作">
+      <button id="btnRefresh" class="btn ghost" aria-label="刷新列表">刷新</button>
+      <button id="btnNew" class="btn primary" aria-label="发布笔记">发布笔记</button>
+    </nav>
+  </header>
+
+  <!-- 网络状态条 -->
+  <div id="netbar" class="netbar" aria-live="polite" hidden>网络已断开，部分功能受限</div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <!-- 发布面板（底部抽屉） -->
+  <section id="composer" class="sheet" aria-hidden="true" aria-label="发布笔记">
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="composerTitle">
+      <div class="sheet__head">
+        <h2 id="composerTitle">发布笔记</h2>
+        <button class="iconbtn" id="composerClose" aria-label="关闭">✕</button>
+      </div>
+      <div class="sheet__body">
+        <div class="formrow">
+          <input id="titleInput" type="text" placeholder="标题（必填）" maxlength="80"/>
+        </div>
+        <div class="formrow">
+          <textarea id="contentInput" placeholder="写点什么...（可选）" maxlength="1000"></textarea>
+        </div>
+        <div class="formrow dropzone" id="dropZone" aria-label="拖拽或点击添加图片/视频">
+          <input id="fileInput" type="file" accept="image/*,video/*"/>
+          <div class="dz-hint">拖拽图片/视频到此处，或点击选择</div>
+          <div id="preview" class="preview"></div>
+        </div>
+      </div>
+      <div class="sheet__foot">
+        <button id="btnPublish" class="btn primary">发布</button>
+        <button id="btnReset" class="btn">重置</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 主容器 -->
+  <main class="container" role="main">
+    <div id="skeleton" class="grid" aria-hidden="true"></div>
+    <div id="grid" class="grid" aria-live="polite"></div>
+    <div id="empty" class="emptystate" hidden>
+      <div class="emptystate__icon">༼ つ ◕_◕ ༽つ</div>
+      <div class="emptystate__title">这里还空空如也</div>
+      <div class="emptystate__text">点击右上角「发布笔记」，分享第一条吧～</div>
+    </div>
+  </main>
+
+  <!-- 详情弹窗（左媒体 / 右信息） -->
+  <dialog id="detailDialog" class="dialog" aria-labelledby="detailTitleLbl">
+    <form method="dialog" class="dialog__panel" id="detailForm">
+      <div class="dialog__head">
+        <h3 id="detailTitleLbl">笔记详情</h3>
+        <button class="iconbtn" id="detailClose" aria-label="关闭">✕</button>
+      </div>
+      <div class="dialog__body">
+        <div id="detailMedia" class="detail__media"></div>
+        <label class="field">
+          <span>标题</span>
+          <input id="detailTitle" type="text" maxlength="80" />
+        </label>
+        <label class="field">
+          <span>内容</span>
+          <textarea id="detailContent" maxlength="2000"></textarea>
+        </label>
+        <label class="field">
+          <span>更换媒体（可选）</span>
+          <input id="detailFile" type="file" accept="image/*,video/*"/>
+        </label>
+        <div id="detailId" class="muted mono"></div>
+        <div id="detailTime" class="muted"></div>
+      </div>
+      <div class="dialog__foot">
+        <button id="btnEdit" class="btn ghost" type="button">编辑</button>
+        <button id="btnSave" class="btn primary" type="submit" hidden>保存</button>
+        <button id="btnDelete" class="btn danger" type="button">删除</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 应用脚本 -->
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
