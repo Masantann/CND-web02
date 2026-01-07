@@ -5,27 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aurora · Notes</title>
     
-    <!-- 字体: Inter + JetBrains Mono -->
+    <!-- 字体 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     
-    <!-- 图标库: Phosphor Icons -->
+    <!-- 图标 -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-    <!-- Tailwind CSS (CDN for prototyping) -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // 消除 Tailwind 控制台警告，并配置样式
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7' }
-                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                    colors: { brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7' } },
                     animation: {
                         'blob': 'blob 7s infinite',
                         'fade-in': 'fadeIn 0.5s ease-out forwards',
@@ -46,305 +42,418 @@
         }
     </script>
 
-    <!-- Masonry Layout & ImagesLoaded -->
+    <!-- Masonry 布局库 -->
     <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
     <script src="https://unpkg.com/imagesloaded@5/imagesloaded.pkgd.min.js"></script>
 
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-    
-    <link rel="stylesheet" href="./style.css">
+    <!-- 内置 CSS (解决 style.css 404 问题) -->
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(203, 213, 225, 0.4); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.6); }
+        * { -webkit-tap-highlight-color: transparent; }
+        .animate-blob { animation: blob 10s infinite; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
+        #masonry-grid { width: 100%; }
+        .grid-item { float: left; }
+        [x-cloak] { display: none !important; } /* 防止闪烁 */
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased overflow-x-hidden selection:bg-brand-500 selection:text-white"
-      x-data="auroraApp()" x-init="initApp()">
 
-    <!-- 极光动态背景 -->
+<!-- 注意：这里去掉了 x-data，我们将在 JS 中手动初始化 -->
+<body class="bg-slate-50 text-slate-800 antialiased overflow-x-hidden selection:bg-brand-500 selection:text-white">
+
+    <!-- 极光背景 -->
     <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div class="absolute top-0 left-1/4 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
         <div class="absolute top-0 right-1/4 w-96 h-96 bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
         <div class="absolute -bottom-32 left-1/3 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
     </div>
 
-    <!-- 顶部悬浮导航 (Glassmorphism) -->
-    <header class="fixed top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-6 py-3 
-                   bg-white/70 backdrop-blur-xl border border-white/50 rounded-full shadow-lg shadow-slate-200/50 
-                   transition-all duration-300 hover:shadow-xl hover:scale-[1.01]">
-        <div class="flex items-center gap-2 text-brand-600">
-            <i class="ph-bold ph-asterisk-simple text-xl"></i>
-            <span class="font-bold tracking-tight text-slate-800">Aurora</span>
-        </div>
-        <div class="w-px h-4 bg-slate-300 mx-1"></div>
-        <button @click="refreshList()" class="p-2 rounded-full hover:bg-white/50 text-slate-500 hover:text-brand-600 transition-colors" title="Refresh">
-            <i class="ph-bold ph-arrow-clockwise" :class="{'animate-spin': loading}"></i>
-        </button>
-        <button @click="showComposer = true" class="bg-slate-900 hover:bg-black text-white px-5 py-2 rounded-full text-sm font-medium transition-transform active:scale-95 shadow-lg shadow-slate-900/20 flex items-center gap-2">
-            <i class="ph-bold ph-plus"></i> New Note
-        </button>
-    </header>
+    <!-- 根组件 (x-data 将在这里被绑定) -->
+    <div x-data="auroraApp" class="min-h-screen relative">
 
-    <!-- Toast 通知 -->
-    <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2 pointer-events-none">
-        <template x-for="msg in toasts" :key="msg.id">
-            <div class="bg-slate-900/90 text-white px-4 py-2.5 rounded-xl shadow-2xl backdrop-blur-md text-sm font-medium animate-slide-up flex items-center gap-2">
-                <i x-show="msg.type === 'success'" class="ph-fill ph-check-circle text-emerald-400"></i>
-                <i x-show="msg.type === 'error'" class="ph-fill ph-warning-circle text-rose-400"></i>
-                <span x-text="msg.text"></span>
+        <!-- 顶部导航 -->
+        <header class="fixed top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-6 py-3 
+                       bg-white/70 backdrop-blur-xl border border-white/50 rounded-full shadow-lg shadow-slate-200/50 
+                       transition-all duration-300 hover:shadow-xl hover:scale-[1.01]">
+            <div class="flex items-center gap-2 text-brand-600">
+                <i class="ph-bold ph-asterisk-simple text-xl"></i>
+                <span class="font-bold tracking-tight text-slate-800">Aurora</span>
             </div>
-        </template>
-    </div>
-
-    <!-- 主容器 -->
-    <main class="w-full max-w-7xl mx-auto px-4 pt-32 pb-24 min-h-screen">
-        
-        <!-- 骨架屏 Loading -->
-        <div x-show="loading && posts.length === 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <template x-for="i in 6">
-                <div class="bg-white/60 rounded-3xl p-4 h-64 animate-pulse border border-white/40"></div>
-            </template>
-        </div>
-
-        <!-- 瀑布流容器 -->
-        <div id="masonry-grid" class="opacity-0 transition-opacity duration-500" :class="{'opacity-100': !loading}">
-            <!-- 这里的 grid-sizer 用于 masonry 响应式计算 -->
-            <div class="grid-sizer w-full md:w-[48%] lg:w-[32%] hidden"></div>
-
-            <!-- 帖子卡片 -->
-            <template x-for="post in posts" :key="post.id">
-                <article class="grid-item w-full md:w-[48%] lg:w-[32%] mb-6 md:mb-8 group">
-                    <div class="relative bg-white/60 backdrop-blur-md border border-white/60 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-                         @click="openDetail(post)">
-                        
-                        <!-- 媒体区域 -->
-                        <template x-if="post.mediaUrl">
-                            <div class="relative w-full overflow-hidden bg-slate-100 aspect-auto">
-                                <template x-if="isVideo(post.mediaUrl)">
-                                    <div class="relative">
-                                        <video :src="post.mediaUrl" class="w-full h-auto object-cover block" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video>
-                                        <div class="absolute top-3 left-3 bg-black/30 backdrop-blur-md text-white/90 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Video</div>
-                                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <div class="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center">
-                                                <i class="ph-fill ph-play text-white text-xl"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
-                                <template x-if="!isVideo(post.mediaUrl)">
-                                    <img :src="post.mediaUrl" loading="lazy" class="w-full h-auto object-cover block transition-transform duration-700 group-hover:scale-105" alt="Post Media">
-                                </template>
-                            </div>
-                        </template>
-
-                        <!-- 内容区域 -->
-                        <div class="p-6">
-                            <h3 class="font-bold text-lg text-slate-900 leading-tight mb-2 line-clamp-2" x-text="post.title"></h3>
-                            <p class="text-slate-500 text-sm leading-relaxed line-clamp-3 mb-4 font-normal" x-text="post.content"></p>
-                            
-                            <!-- 底部信息 -->
-                            <div class="flex items-center justify-between pt-4 border-t border-slate-200/50">
-                                <span class="text-[11px] font-mono font-medium text-slate-400 bg-slate-100/50 px-2 py-1 rounded-md" x-text="formatDate(post.createdAt)"></span>
-                                <button class="w-8 h-8 rounded-full flex items-center justify-center bg-transparent hover:bg-slate-100 text-slate-400 hover:text-brand-600 transition-colors">
-                                    <i class="ph-bold ph-arrow-right"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </article>
-            </template>
-        </div>
-
-        <!-- 空状态 -->
-        <div x-show="!loading && posts.length === 0" class="flex flex-col items-center justify-center py-20 text-center animate-fade-in" style="display: none;">
-            <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 text-4xl shadow-inner">🍃</div>
-            <h2 class="text-xl font-bold text-slate-800 mb-2">It's quiet here</h2>
-            <p class="text-slate-500 mb-6">Be the first to share a moment.</p>
-            <button @click="showComposer = true" class="text-brand-600 font-medium hover:underline">Create Note</button>
-        </div>
-    </main>
-
-    <!-- 发布弹窗 (Composer Modal) -->
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4" 
-         style="display: none;" x-show="showComposer">
-        <!-- 背景遮罩 -->
-        <div class="absolute inset-0 bg-slate-200/40 backdrop-blur-lg transition-opacity duration-300"
-             x-show="showComposer" x-transition.opacity @click="closeComposer()"></div>
-        
-        <!-- 弹窗主体 -->
-        <div class="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl shadow-slate-900/10 overflow-hidden border border-white"
-             x-show="showComposer"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 translate-y-8 scale-95"
-             x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-             x-transition:leave-end="opacity-0 translate-y-8 scale-95">
-            
-            <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white/50">
-                <h2 class="text-lg font-bold text-slate-800">New Note</h2>
-                <button @click="closeComposer()" class="text-slate-400 hover:text-slate-600 p-2"><i class="ph-bold ph-x text-lg"></i></button>
-            </div>
-
-            <div class="p-8 space-y-5">
-                <div>
-                    <input type="text" x-model="newPost.title" placeholder="A catchy title..." 
-                           class="w-full text-2xl font-bold text-slate-900 placeholder:text-slate-300 border-none bg-transparent p-0 focus:ring-0">
-                </div>
-                <div>
-                    <textarea x-model="newPost.content" placeholder="What's on your mind today?" rows="4"
-                              class="w-full text-base text-slate-600 placeholder:text-slate-300 border-none bg-transparent p-0 focus:ring-0 resize-none"></textarea>
-                </div>
-                
-                <!-- 拖拽上传区 -->
-                <div class="group relative w-full h-32 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center transition-colors hover:border-brand-400 hover:bg-brand-50"
-                     :class="{'border-brand-500 bg-brand-50': isDragging}"
-                     @dragover.prevent="isDragging = true" @dragleave.prevent="isDragging = false" @drop.prevent="handleDrop($event)">
-                    
-                    <input type="file" @change="handleFileSelect($event)" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*,video/*">
-                    
-                    <template x-if="!newPost.filePreview">
-                        <div class="text-center pointer-events-none">
-                            <i class="ph-duotone ph-image text-3xl text-slate-300 group-hover:text-brand-400 mb-2 block"></i>
-                            <span class="text-xs font-medium text-slate-400 group-hover:text-brand-500">Drop image or video here</span>
-                        </div>
-                    </template>
-                    
-                    <template x-if="newPost.filePreview">
-                        <div class="absolute inset-0 p-2 w-full h-full flex items-center justify-center bg-slate-50 rounded-2xl overflow-hidden">
-                             <template x-if="newPost.fileIsVideo">
-                                <video :src="newPost.filePreview" class="h-full w-auto rounded-lg shadow-sm" controls></video>
-                             </template>
-                             <template x-if="!newPost.fileIsVideo">
-                                <img :src="newPost.filePreview" class="h-full w-auto object-contain rounded-lg shadow-sm">
-                             </template>
-                             <button @click.prevent="clearFile()" class="absolute top-3 right-3 z-20 bg-white shadow-md rounded-full p-1.5 text-rose-500 hover:scale-110 transition-transform">
-                                <i class="ph-bold ph-trash"></i>
-                             </button>
-                        </div>
-                    </template>
-                </div>
-            </div>
-
-            <div class="px-8 py-5 bg-slate-50/80 border-t border-slate-100 flex justify-end gap-3">
-                <button @click="closeComposer()" class="px-5 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-white rounded-xl transition-colors">Cancel</button>
-                <button @click="publishPost()" 
-                        class="px-6 py-2 bg-slate-900 text-white text-sm font-medium rounded-xl shadow-lg shadow-slate-900/20 hover:bg-black hover:scale-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                        :disabled="isPublishing || !newPost.title">
-                    <i class="ph-bold ph-paper-plane-right" x-show="!isPublishing"></i>
-                    <i class="ph-bold ph-spinner animate-spin" x-show="isPublishing"></i>
-                    <span x-text="isPublishing ? 'Publishing...' : 'Publish'"></span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 详情弹窗 (Detail Modal) -->
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6" 
-         style="display: none;" x-show="detailOpen">
-        <div class="absolute inset-0 bg-slate-200/60 backdrop-blur-xl transition-opacity duration-300"
-             x-show="detailOpen" x-transition.opacity @click="closeDetail()"></div>
-        
-        <div class="relative w-full max-w-5xl h-full md:h-[85vh] bg-white md:rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-slide-up"
-             x-show="detailOpen" @click.stop>
-             
-            <!-- 关闭按钮 -->
-            <button @click="closeDetail()" class="absolute top-4 right-4 z-20 p-2 bg-black/10 hover:bg-black/20 text-slate-800 md:text-white backdrop-blur rounded-full transition-colors">
-                <i class="ph-bold ph-x"></i>
+            <div class="w-px h-4 bg-slate-300 mx-1"></div>
+            <button @click="refreshList()" class="p-2 rounded-full hover:bg-white/50 text-slate-500 hover:text-brand-600 transition-colors" title="Refresh">
+                <i class="ph-bold ph-arrow-clockwise" :class="{'animate-spin': loading}"></i>
             </button>
+            <button @click="showComposer = true" class="bg-slate-900 hover:bg-black text-white px-5 py-2 rounded-full text-sm font-medium transition-transform active:scale-95 shadow-lg shadow-slate-900/20 flex items-center gap-2">
+                <i class="ph-bold ph-plus"></i> New Note
+            </button>
+        </header>
 
-            <!-- 左侧：媒体 (如果是图片则占大半) -->
-            <div class="w-full md:w-3/5 bg-slate-100 flex items-center justify-center relative overflow-hidden group">
-                 <template x-if="detailPost.mediaUrl">
-                    <div class="w-full h-full flex items-center justify-center bg-slate-900">
-                        <template x-if="isVideo(detailPost.mediaUrl)">
-                            <video :src="detailPost.mediaUrl" controls class="max-w-full max-h-full"></video>
-                        </template>
-                        <template x-if="!isVideo(detailPost.mediaUrl)">
-                             <!-- 模糊背景图 -->
-                            <div class="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110" :style="`background-image: url('${detailPost.mediaUrl}')`"></div>
-                            <img :src="detailPost.mediaUrl" class="relative max-w-full max-h-full object-contain shadow-2xl">
-                        </template>
-                    </div>
-                 </template>
-                 <template x-if="!detailPost.mediaUrl">
-                     <div class="text-slate-300 flex flex-col items-center">
-                         <i class="ph-duotone ph-image-broken text-6xl mb-4"></i>
-                         <span class="text-sm font-medium">No Media</span>
-                     </div>
-                 </template>
-                 
-                 <!-- 编辑模式下的媒体更换 -->
-                 <div x-show="isEditing" class="absolute inset-0 bg-slate-900/50 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                      <label class="cursor-pointer bg-white text-slate-900 px-4 py-2 rounded-full font-medium text-sm hover:scale-105 transition-transform">
-                          Change Media
-                          <input type="file" class="hidden" accept="image/*,video/*" @change="handleDetailFileChange($event)">
-                      </label>
-                 </div>
+        <!-- Toast 通知 -->
+        <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2 pointer-events-none">
+            <template x-for="msg in toasts" :key="msg.id">
+                <div class="bg-slate-900/90 text-white px-4 py-2.5 rounded-xl shadow-2xl backdrop-blur-md text-sm font-medium animate-slide-up flex items-center gap-2">
+                    <i x-show="msg.type === 'success'" class="ph-fill ph-check-circle text-emerald-400"></i>
+                    <i x-show="msg.type === 'error'" class="ph-fill ph-warning-circle text-rose-400"></i>
+                    <span x-text="msg.text"></span>
+                </div>
+            </template>
+        </div>
+
+        <!-- 主内容 -->
+        <main class="w-full max-w-7xl mx-auto px-4 pt-32 pb-24 min-h-screen">
+            
+            <!-- 骨架屏 -->
+            <div x-show="loading && posts.length === 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <template x-for="i in 6">
+                    <div class="bg-white/60 rounded-3xl p-4 h-64 animate-pulse border border-white/40"></div>
+                </template>
             </div>
 
-            <!-- 右侧：信息 -->
-            <div class="w-full md:w-2/5 flex flex-col bg-white h-full">
-                <!-- 头部 -->
-                <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-white z-10">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-brand-50 text-brand-500 flex items-center justify-center font-bold font-mono">
-                            <span x-text="detailPost.title ? detailPost.title.charAt(0).toUpperCase() : '?'"></span>
+            <!-- 瀑布流 -->
+            <div id="masonry-grid" class="opacity-0 transition-opacity duration-500" :class="{'opacity-100': !loading}">
+                <div class="grid-sizer w-full md:w-[48%] lg:w-[32%] hidden"></div>
+
+                <template x-for="post in posts" :key="post.id">
+                    <article class="grid-item w-full md:w-[48%] lg:w-[32%] mb-6 md:mb-8 group">
+                        <div class="relative bg-white/60 backdrop-blur-md border border-white/60 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                             @click="openDetail(post)">
+                            
+                            <template x-if="post.mediaUrl">
+                                <div class="relative w-full overflow-hidden bg-slate-100 aspect-auto">
+                                    <template x-if="isVideo(post.mediaUrl)">
+                                        <div class="relative">
+                                            <video :src="post.mediaUrl" class="w-full h-auto object-cover block" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video>
+                                            <div class="absolute top-3 left-3 bg-black/30 backdrop-blur-md text-white/90 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Video</div>
+                                        </div>
+                                    </template>
+                                    <template x-if="!isVideo(post.mediaUrl)">
+                                        <img :src="post.mediaUrl" loading="lazy" class="w-full h-auto object-cover block transition-transform duration-700 group-hover:scale-105" alt="Post Media">
+                                    </template>
+                                </div>
+                            </template>
+
+                            <div class="p-6">
+                                <h3 class="font-bold text-lg text-slate-900 leading-tight mb-2 line-clamp-2" x-text="post.title"></h3>
+                                <p class="text-slate-500 text-sm leading-relaxed line-clamp-3 mb-4 font-normal" x-text="post.content"></p>
+                                <div class="flex items-center justify-between pt-4 border-t border-slate-200/50">
+                                    <span class="text-[11px] font-mono font-medium text-slate-400 bg-slate-100/50 px-2 py-1 rounded-md" x-text="formatDate(post.createdAt)"></span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex flex-col">
-                            <span class="text-xs font-mono text-slate-400" x-text="'ID: ' + detailPost.id"></span>
-                            <span class="text-xs text-slate-500" x-text="formatDate(detailPost.createdAt)"></span>
-                        </div>
-                    </div>
+                    </article>
+                </template>
+            </div>
+
+            <!-- 空状态 -->
+            <div x-show="!loading && posts.length === 0" x-cloak class="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+                <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 text-4xl shadow-inner">🍃</div>
+                <h2 class="text-xl font-bold text-slate-800 mb-2">It's quiet here</h2>
+                <p class="text-slate-500 mb-6">Be the first to share a moment.</p>
+                <button @click="showComposer = true" class="text-brand-600 font-medium hover:underline">Create Note</button>
+            </div>
+        </main>
+
+        <!-- 发布弹窗 -->
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" 
+             x-cloak x-show="showComposer">
+            <div class="absolute inset-0 bg-slate-200/40 backdrop-blur-lg transition-opacity duration-300"
+                 x-show="showComposer" x-transition.opacity @click="closeComposer()"></div>
+            
+            <div class="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl shadow-slate-900/10 overflow-hidden border border-white"
+                 x-show="showComposer"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-8 scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                 x-transition:leave-end="opacity-0 translate-y-8 scale-95">
+                
+                <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white/50">
+                    <h2 class="text-lg font-bold text-slate-800">New Note</h2>
+                    <button @click="closeComposer()" class="text-slate-400 hover:text-slate-600 p-2"><i class="ph-bold ph-x text-lg"></i></button>
+                </div>
+
+                <div class="p-8 space-y-5">
+                    <input type="text" x-model="newPost.title" placeholder="Title..." class="w-full text-2xl font-bold text-slate-900 placeholder:text-slate-300 border-none bg-transparent p-0 focus:ring-0">
+                    <textarea x-model="newPost.content" placeholder="Content..." rows="4" class="w-full text-base text-slate-600 placeholder:text-slate-300 border-none bg-transparent p-0 focus:ring-0 resize-none"></textarea>
                     
-                    <!-- 操作菜单 -->
-                    <div class="flex gap-2">
-                         <template x-if="!isEditing">
-                            <button @click="isEditing = true" class="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors" title="Edit">
-                                <i class="ph-bold ph-pencil-simple"></i>
-                            </button>
-                         </template>
-                         <template x-if="isEditing">
-                             <button @click="saveDetail()" class="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg" title="Save">
-                                <i class="ph-bold ph-check"></i>
-                             </button>
-                             <button @click="isEditing = false" class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg" title="Cancel">
-                                <i class="ph-bold ph-arrow-u-up-left"></i>
-                             </button>
-                         </template>
-                         <button @click="deleteDetail()" class="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors" title="Delete">
-                             <i class="ph-bold ph-trash"></i>
-                         </button>
+                    <div class="group relative w-full h-32 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center transition-colors hover:border-brand-400 hover:bg-brand-50"
+                         :class="{'border-brand-500 bg-brand-50': isDragging}"
+                         @dragover.prevent="isDragging = true" @dragleave.prevent="isDragging = false" @drop.prevent="handleDrop($event)">
+                        
+                        <input type="file" @change="handleFileSelect($event)" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*,video/*">
+                        
+                        <template x-if="!newPost.filePreview">
+                            <div class="text-center pointer-events-none">
+                                <i class="ph-duotone ph-image text-3xl text-slate-300 mb-2 block"></i>
+                                <span class="text-xs font-medium text-slate-400">Drop media here</span>
+                            </div>
+                        </template>
+                        
+                        <template x-if="newPost.filePreview">
+                            <div class="absolute inset-0 p-2 w-full h-full flex items-center justify-center bg-slate-50 rounded-2xl overflow-hidden">
+                                 <template x-if="newPost.fileIsVideo">
+                                    <video :src="newPost.filePreview" class="h-full w-auto rounded-lg" controls></video>
+                                 </template>
+                                 <template x-if="!newPost.fileIsVideo">
+                                    <img :src="newPost.filePreview" class="h-full w-auto object-contain rounded-lg">
+                                 </template>
+                                 <button @click.prevent="clearFile()" class="absolute top-3 right-3 z-20 bg-white shadow-md rounded-full p-1.5 text-rose-500 hover:scale-110 transition-transform">
+                                    <i class="ph-bold ph-trash"></i>
+                                 </button>
+                            </div>
+                        </template>
                     </div>
                 </div>
 
-                <!-- 滚动内容区 -->
-                <div class="flex-1 overflow-y-auto p-6 space-y-4">
-                    <template x-if="!isEditing">
-                        <div>
-                            <h1 class="text-2xl font-bold text-slate-900 mb-4 leading-tight" x-text="detailPost.title"></h1>
-                            <p class="text-slate-600 leading-relaxed whitespace-pre-wrap font-light text-lg" x-text="detailPost.content"></p>
-                        </div>
-                    </template>
-                    
-                    <template x-if="isEditing">
-                        <div class="space-y-4 animate-fade-in">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Title</label>
-                                <input type="text" x-model="detailPost.title" class="w-full border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none font-bold text-lg">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Content</label>
-                                <textarea x-model="detailPost.content" rows="10" class="w-full border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none resize-none leading-relaxed"></textarea>
-                            </div>
-                            <div x-show="detailPost.newFile" class="text-xs text-brand-600 bg-brand-50 px-2 py-1 rounded inline-block">
-                                New media selected (will upload on save)
-                            </div>
-                        </div>
-                    </template>
+                <div class="px-8 py-5 bg-slate-50/80 border-t border-slate-100 flex justify-end gap-3">
+                    <button @click="closeComposer()" class="px-5 py-2 text-sm font-medium text-slate-500 hover:bg-white rounded-xl">Cancel</button>
+                    <button @click="publishPost()" class="px-6 py-2 bg-slate-900 text-white text-sm font-medium rounded-xl shadow-lg flex items-center gap-2 hover:bg-black" :disabled="isPublishing || !newPost.title">
+                        <span x-text="isPublishing ? 'Publishing...' : 'Publish'"></span>
+                    </button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- App Logic Injection -->
-    <script type="module" src="./app.js"></script>
+        <!-- 详情弹窗 -->
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6" 
+             x-cloak x-show="detailOpen">
+            <div class="absolute inset-0 bg-slate-200/60 backdrop-blur-xl transition-opacity duration-300"
+                 x-show="detailOpen" x-transition.opacity @click="closeDetail()"></div>
+            
+            <div class="relative w-full max-w-5xl h-full md:h-[85vh] bg-white md:rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-slide-up"
+                 x-show="detailOpen" @click.stop>
+                 
+                <button @click="closeDetail()" class="absolute top-4 right-4 z-20 p-2 bg-black/10 hover:bg-black/20 text-slate-800 md:text-white backdrop-blur rounded-full transition-colors">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+
+                <!-- 左侧媒体 -->
+                <div class="w-full md:w-3/5 bg-slate-100 flex items-center justify-center relative overflow-hidden">
+                     <template x-if="detailPost.mediaUrl">
+                        <div class="w-full h-full flex items-center justify-center bg-slate-900">
+                            <template x-if="isVideo(detailPost.mediaUrl)">
+                                <video :src="detailPost.mediaUrl" controls class="max-w-full max-h-full"></video>
+                            </template>
+                            <template x-if="!isVideo(detailPost.mediaUrl)">
+                                <div class="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110" :style="`background-image: url('${detailPost.mediaUrl}')`"></div>
+                                <img :src="detailPost.mediaUrl" class="relative max-w-full max-h-full object-contain shadow-2xl">
+                            </template>
+                        </div>
+                     </template>
+                     <template x-if="!detailPost.mediaUrl">
+                         <div class="text-slate-300 flex flex-col items-center"><i class="ph-duotone ph-image-broken text-6xl mb-4"></i></div>
+                     </template>
+                     
+                     <div x-show="isEditing" class="absolute inset-0 bg-slate-900/50 flex flex-col items-center justify-center" x-transition.opacity>
+                          <label class="cursor-pointer bg-white text-slate-900 px-4 py-2 rounded-full font-medium text-sm hover:scale-105 transition-transform">
+                              Change Media <input type="file" class="hidden" accept="image/*,video/*" @change="handleDetailFileChange($event)">
+                          </label>
+                     </div>
+                </div>
+
+                <!-- 右侧信息 -->
+                <div class="w-full md:w-2/5 flex flex-col bg-white h-full">
+                    <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-white z-10">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-brand-50 text-brand-500 flex items-center justify-center font-bold font-mono">
+                                <span x-text="detailPost.title ? detailPost.title.charAt(0).toUpperCase() : '?'"></span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-mono text-slate-400" x-text="'ID: ' + detailPost.id"></span>
+                                <span class="text-xs text-slate-500" x-text="formatDate(detailPost.createdAt)"></span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                             <template x-if="!isEditing">
+                                <button @click="isEditing = true" class="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"><i class="ph-bold ph-pencil-simple"></i></button>
+                             </template>
+                             <template x-if="isEditing">
+                                 <button @click="saveDetail()" class="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg"><i class="ph-bold ph-check"></i></button>
+                                 <button @click="isEditing = false" class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"><i class="ph-bold ph-arrow-u-up-left"></i></button>
+                             </template>
+                             <button @click="deleteDetail()" class="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"><i class="ph-bold ph-trash"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                        <template x-if="!isEditing">
+                            <div>
+                                <h1 class="text-2xl font-bold text-slate-900 mb-4 leading-tight" x-text="detailPost.title"></h1>
+                                <p class="text-slate-600 leading-relaxed whitespace-pre-wrap font-light text-lg" x-text="detailPost.content"></p>
+                            </div>
+                        </template>
+                        <template x-if="isEditing">
+                            <div class="space-y-4">
+                                <input type="text" x-model="detailPost.title" class="w-full border border-slate-200 rounded-lg px-3 py-2 font-bold text-lg">
+                                <textarea x-model="detailPost.content" rows="10" class="w-full border border-slate-200 rounded-lg px-3 py-2 resize-none leading-relaxed"></textarea>
+                                <div x-show="detailPost.newFile" class="text-xs text-brand-600 bg-brand-50 px-2 py-1 rounded inline-block">New media selected</div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div> <!-- End Root x-data -->
+
+    <!-- ★★★ 核心修复：应用逻辑 + ESM Alpine 导入 ★★★ -->
+    <script type="module">
+        import { listPosts, getPost, createPost, updatePost, deletePost } from './api.js';
+        // 直接导入 Alpine 的 ESM 版本，保证加载顺序
+        import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/module.esm.js';
+
+        // 定义数据组件
+        Alpine.data('auroraApp', () => ({
+            posts: [],
+            loading: true,
+            showComposer: false,
+            isDragging: false,
+            isPublishing: false,
+            detailOpen: false,
+            detailPost: {}, 
+            isEditing: false,
+            newPost: { title: '', content: '', file: null, filePreview: null, fileIsVideo: false },
+            toasts: [],
+            msnry: null,
+
+            async init() {
+                this.handleHashChange();
+                window.addEventListener('hashchange', () => this.handleHashChange());
+                window.addEventListener('resize', () => this.layoutGrid());
+                await this.refreshList();
+            },
+
+            initMasonry() {
+                const grid = document.getElementById('masonry-grid');
+                if (this.msnry) this.msnry.destroy();
+                
+                imagesLoaded(grid, () => {
+                    this.msnry = new Masonry(grid, {
+                        itemSelector: '.grid-item',
+                        columnWidth: '.grid-sizer',
+                        percentPosition: true,
+                        gutter: 0 // 让 Tailwind 控制间距，或者这里设为 0
+                    });
+                    this.msnry.layout();
+                });
+            },
+            
+            layoutGrid() { if (this.msnry) this.msnry.layout(); },
+
+            async refreshList() {
+                this.loading = true;
+                try {
+                    this.posts = await listPosts();
+                    this.$nextTick(() => { this.initMasonry(); });
+                } catch (e) {
+                    this.showToast(e.message, 'error');
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            // Composer
+            handleFileSelect(e) { this.processFile(e.target.files[0]); },
+            handleDrop(e) { this.isDragging = false; this.processFile(e.dataTransfer.files[0]); },
+            processFile(file) {
+                if (!file) return;
+                this.newPost.file = file;
+                this.newPost.fileIsVideo = file.type.startsWith('video/');
+                this.newPost.filePreview = URL.createObjectURL(file);
+            },
+            clearFile() { this.newPost.file = null; this.newPost.filePreview = null; },
+            closeComposer() {
+                this.showComposer = false;
+                setTimeout(() => { this.newPost = { title: '', content: '', file: null, filePreview: null, fileIsVideo: false }; }, 300);
+            },
+            async publishPost() {
+                if (!this.newPost.title) return;
+                this.isPublishing = true;
+                try {
+                    await createPost({ title: this.newPost.title, content: this.newPost.content, file: this.newPost.file });
+                    this.showToast('Note published', 'success');
+                    this.closeComposer();
+                    await this.refreshList();
+                } catch (e) {
+                    this.showToast(e.message, 'error');
+                } finally {
+                    this.isPublishing = false;
+                }
+            },
+
+            // Detail
+            async openDetail(post) {
+                this.detailPost = { ...post }; 
+                this.detailOpen = true;
+                this.isEditing = false;
+                window.location.hash = `/post/${post.id}`;
+                try {
+                    const fullPost = await getPost(post.id);
+                    this.detailPost = { ...this.detailPost, ...fullPost };
+                } catch (e) {}
+            },
+            closeDetail() {
+                this.detailOpen = false;
+                this.isEditing = false;
+                history.replaceState(null, '', window.location.pathname);
+            },
+            handleDetailFileChange(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    this.detailPost.newFile = file;
+                    this.detailPost.mediaUrl = URL.createObjectURL(file);
+                }
+            },
+            async saveDetail() {
+                try {
+                    await updatePost({ id: this.detailPost.id, title: this.detailPost.title, content: this.detailPost.content, file: this.detailPost.newFile });
+                    this.showToast('Changes saved', 'success');
+                    this.isEditing = false;
+                    await this.refreshList();
+                } catch (e) { this.showToast(e.message, 'error'); }
+            },
+            async deleteDetail() {
+                if (!confirm('Are you sure?')) return;
+                try {
+                    await deletePost(this.detailPost.id);
+                    this.showToast('Note deleted', 'success');
+                    this.closeDetail();
+                    await this.refreshList();
+                } catch (e) { this.showToast(e.message, 'error'); }
+            },
+
+            // Helpers
+            handleHashChange() {
+                const match = window.location.hash.match(/#\/post\/(.+)/);
+                if (match && match[1]) {
+                    const id = decodeURIComponent(match[1]);
+                    const local = this.posts.find(p => p.id === id);
+                    if (local) this.openDetail(local);
+                    else getPost(id).then(p => { this.detailPost = p; this.detailOpen = true; }).catch(()=>{});
+                } else {
+                    this.detailOpen = false;
+                }
+            },
+            isVideo(url) { return url && /\.(mp4|webm|ogg)$/i.test(url); },
+            formatDate(isoStr) {
+                if (!isoStr) return '';
+                const d = new Date(isoStr);
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            },
+            showToast(text, type = 'success') {
+                const id = Date.now();
+                this.toasts.push({ id, text, type });
+                setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 3000);
+            }
+        }));
+
+        // 启动 Alpine
+        Alpine.start();
+    </script>
 </body>
 </html>
