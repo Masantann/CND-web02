@@ -225,7 +225,7 @@
             </div>
         </div>
 
-        <!-- 详情弹窗 (修复图片显示 + 完整时间) -->
+        <!-- 详情弹窗 (修复按钮显示问题) -->
         <div class="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6" x-cloak x-show="detailOpen">
             <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" x-show="detailOpen" x-transition.opacity @click="closeDetail()"></div>
             
@@ -237,7 +237,7 @@
                     <i class="ph-bold ph-x text-lg"></i>
                 </button>
 
-                <!-- 左侧：媒体展示区 (强制 flex) -->
+                <!-- 左侧：媒体展示区 -->
                 <div class="w-full md:w-2/3 h-[40vh] md:h-full bg-slate-900 relative group detail-media-container">
                     <template x-if="detailPost.mediaUrl">
                          <div class="w-full h-full flex items-center justify-center">
@@ -277,34 +277,31 @@
 
                     <!-- 内容滚动区 -->
                     <div class="flex-1 overflow-y-auto p-6">
-                        <template x-if="!isEditing">
-                            <div>
-                                <h2 class="text-2xl font-bold text-slate-900 mb-4 leading-tight" x-text="detailPost.title"></h2>
-                                <p class="text-slate-700 whitespace-pre-wrap leading-relaxed text-base" x-text="detailPost.content"></p>
-                                <!-- 详情页时间：完整年月日时分秒 -->
-                                <div class="mt-6 text-sm text-slate-400" x-text="formatDateTime(detailPost.createdAt)"></div>
-                            </div>
-                        </template>
+                        <!-- 只读模式 -->
+                        <div x-show="!isEditing">
+                            <h2 class="text-2xl font-bold text-slate-900 mb-4 leading-tight" x-text="detailPost.title"></h2>
+                            <p class="text-slate-700 whitespace-pre-wrap leading-relaxed text-base" x-text="detailPost.content"></p>
+                            <!-- 详情页时间：完整年月日时分秒 -->
+                            <div class="mt-6 text-sm text-slate-400" x-text="formatDateTime(detailPost.createdAt)"></div>
+                        </div>
 
                         <!-- 编辑表单 -->
-                        <template x-if="isEditing">
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Title</label>
-                                    <input type="text" x-model="detailPost.title" class="w-full border border-slate-200 rounded-lg px-3 py-2 font-bold focus:border-brand-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Content</label>
-                                    <textarea x-model="detailPost.content" rows="10" class="w-full border border-slate-200 rounded-lg px-3 py-2 resize-none focus:border-brand-500 outline-none"></textarea>
-                                </div>
-                                <div x-show="detailPost.newFile" class="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded inline-block border border-emerald-100">
-                                    New media selected
-                                </div>
+                        <div x-show="isEditing" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Title</label>
+                                <input type="text" x-model="detailPost.title" class="w-full border border-slate-200 rounded-lg px-3 py-2 font-bold focus:border-brand-500 outline-none">
                             </div>
-                        </template>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Content</label>
+                                <textarea x-model="detailPost.content" rows="10" class="w-full border border-slate-200 rounded-lg px-3 py-2 resize-none focus:border-brand-500 outline-none"></textarea>
+                            </div>
+                            <div x-show="detailPost.newFile" class="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded inline-block border border-emerald-100">
+                                New media selected
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- 底部操作栏 (包括删除按钮) -->
+                    <!-- 底部操作栏 (修复按钮逻辑) -->
                     <div class="p-4 border-t border-slate-100 bg-slate-50 shrink-0 flex items-center justify-between">
                         
                         <!-- 左侧：删除按钮 -->
@@ -312,19 +309,20 @@
                             <i class="ph-bold ph-trash"></i> <span class="hidden sm:inline">Delete</span>
                         </button>
 
-                        <!-- 右侧：编辑/保存 -->
+                        <!-- 右侧：编辑/保存/取消 -->
                         <div class="flex gap-2">
-                             <template x-if="!isEditing">
-                                <button @click="isEditing = true" class="bg-white border border-slate-200 text-slate-700 hover:border-brand-300 hover:text-brand-600 px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm">
-                                    Edit
-                                </button>
-                             </template>
-                             <template x-if="isEditing">
+                             <!-- 编辑按钮 -->
+                             <button x-show="!isEditing" @click="isEditing = true" class="bg-white border border-slate-200 text-slate-700 hover:border-brand-300 hover:text-brand-600 px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm">
+                                Edit
+                             </button>
+
+                             <!-- 编辑状态下的按钮组 -->
+                             <div x-show="isEditing" class="flex gap-2">
                                  <button @click="isEditing = false" class="px-4 py-2 text-slate-500 hover:text-slate-800 text-sm font-medium">Cancel</button>
                                  <button @click="saveDetail()" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 shadow-lg shadow-brand-500/20">
                                     Save Changes
                                  </button>
-                             </template>
+                             </div>
                         </div>
                     </div>
                 </div>
